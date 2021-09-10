@@ -1,0 +1,8 @@
+nimcache/
+nimblecache/
+htmldocs/
+output/**
+content/**
+tools/bin/**
+.deps
+.vscode/**
