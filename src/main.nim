@@ -24,7 +24,7 @@ Game:
     um: UIManager
     ms: MouseState
     pms: MouseState
-    fsm: StateMachine
+    UIState: uint8
 
   template Initialize() =
     setWindowName("Sleep to Defend")
@@ -58,16 +58,7 @@ Game:
       towerMenu = initUIGroup()
       roundMenu = initUIGroup()
       selectMenu = initUIGroup()
-
-    var
-      gamePausePress = initFlag(0, 1)
-      pausePausePress = initFlag(0, 0)
-
-      menu = initState(@[])
-      game = initState(@[gamePausePress])   # 0
-      pause = initState(@[pausePausePress]) # 1
-
-    fsm = initStateMachine(@[menu, game, pause])
+      aboutPopup = initUIGroup()
 
     sm.add("content://click.wav", "click", 255)
     sm.add("content://hover.wav", "hover", 255)
@@ -79,15 +70,18 @@ Game:
     bg = initColor(0, 0, 0, 255)
 
     towerMenu.add(initUIButton(addr image, initRectangle(400, 0, 150, 25),
-            (i: int) => upgradeTower(0), "Upgrade Speed"))
+            (i: int) => upgradeTower(0), "Upgrade Speed (1R)", () => (
+                em.round.running)))
     towerMenu.add(initUIButton(addr image, initRectangle(400, 25, 150, 25),
-            (i: int) => upgradeTower(1), "Upgrade Strength", () => true))
+            (i: int) => upgradeTower(1), "Upgrade Strength (3R)", () => (
+                em.round.running)))
     towerMenu.add(initUIButton(addr image, initRectangle(400, 50, 150, 25),
-            (i: int) => upgradeTower(2), "Upgrade Peirce"))
+            (i: int) => upgradeTower(2), "Upgrade Peirce (2R)", () => (
+                em.round.running)))
     towerMenu.add(initUIButton(addr image, initRectangle(400, 75, 75, 25),
             (i: int) => destroyTower(em), "Destroy"))
     towerMenu.add(initUIButton(addr image, initRectangle(475, 75, 75, 25),
-            (i: int) => resetSelected(), "x"))
+            (i: int) => resetSelected(), "Deselect"))
     roundMenu.add(initUIButton(addr image, initRectangle(400, 300, 75, 25),
             (i: int) => newTower(em, Tower(makesKind: bkInvis), 3), "Hollow (3)"))
     roundMenu.add(initUIButton(addr image, initRectangle(475, 300, 75, 25),
@@ -102,7 +96,7 @@ Game:
             (i: int) => newTower(em, Tower(support: true, makesKind: bkNorm),
                 3), "Support (3)"))
     roundMenu.add(initUIButton(addr image, initRectangle(400, 350, 150, 25),
-            (i: int) => nextRound(em), ">"))
+            (i: int) => nextRound(em), "Next Round"))
     roundMenu.add(initUIButton(addr image, initRectangle(400, 375, 150, 25),
             (i: int) => restartGame(em), "Restart"))
     roundMenu.add(initUIText(initRectangle(400, 100, 150, 10), () =>
@@ -113,6 +107,8 @@ Game:
         &"credits: {em.credits}"))
     selectMenu.add(initUIButton(addr image, initRectangle(400, 350, 150, 25),
             (i: int) => (em.selected = true), "Play"))
+    selectMenu.add(initUIButton(addr image, initRectangle(400, 325, 150, 25),
+            (i: int) => (UIState = 1), "About"))
     selectMenu.add(initUIButton(addr image, initRectangle(475, 375, 75, 25),
             (i: int) => incMap(1), "Next"))
     selectMenu.add(initUIButton(addr image, initRectangle(400, 375, 75, 25),
@@ -124,9 +120,14 @@ Game:
     selectMenu.add(initUIText(initRectangle(400, 120, 150, 10), () =>
         &"Length: {getPathLength()}"))
 
+    aboutPopup.add(initUIPanel(addr image, initRectangle(100, 100, 350, 200), true))
+    aboutPopup.add(initUIButton(addr image, initRectangle(235, 270, 80, 28),
+            (i: int) => (UIState = 0), "Back"))
+
     um.add(@[towerMenu,
              roundMenu,
-             selectMenu])
+             selectMenu,
+             aboutPopup])
 
     addSub(EVENT_DAMAGE, DamageEventProc)
     addSub(EVENT_CLICK, ClickEventProc)
@@ -136,37 +137,26 @@ Game:
     um.setActive(0, towerSelected())
     um.setActive(1, em.selected)
     um.setActive(2, not em.selected)
+    um.setActive(3, UIState >= 1)
+    um.setPopup(0, UIState >= 1)
+    um.setPopup(1, UIState >= 1)
+    um.setPopup(2, UIState >= 1)
+    um.setPopup(3, UIState >= 2)
     discard um.update(sm)
-    case fsm.currentState:
-    of 0, 2:
-      pms = ms
-      ms = getMouseState()
-      if (not pms.pressedButtons.contains(1) and ms.pressedButtons.contains(1)):
-        queueEvent(Event(kind: EVENT_CLICK, data: EventData(data: @[
-            ms.position.X.int, ms.position.Y.int])))
-      if (not pms.pressedButtons.contains(3) and ms.pressedButtons.contains(3)):
-        em.cursor.placeMode = false
-        resetSelected()
-      em.update(internal.eventBus, (dt.float / 10).cuint)
-    of 1:
-      pms = ms
-      ms = getMouseState()
-      if (not pms.pressedButtons.contains(1) and ms.pressedButtons.contains(1)):
-        queueEvent(Event(kind: EVENT_CLICK, data: EventData(data: @[
-            ms.position.X.int, ms.position.Y.int])))
-      if (not pms.pressedButtons.contains(3) and ms.pressedButtons.contains(3)):
-        em.cursor.placeMode = false
-        resetSelected()
-    else: discard
+    pms = ms
+    ms = getMouseState()
+    if (not pms.pressedButtons.contains(1) and ms.pressedButtons.contains(1)):
+      queueEvent(Event(kind: EVENT_CLICK, data: EventData(data: @[
+          ms.position.X.int, ms.position.Y.int])))
+    if (not pms.pressedButtons.contains(3) and ms.pressedButtons.contains(3)):
+      em.cursor.placeMode = false
+      resetSelected()
+    em.update(internal.eventBus, (dt.float / 10).cuint)
 
   template Draw(dt: cuint, ctx: GraphicsContext) =
     clearBuffer(bg)
     renderMap(image, currentMap)
-    case fsm.currentState:
-    of 0:
-      em.draw(image)
-    else:
-      discard
+    em.draw(image)
     drawFill(initRectangle(400, 0, 150, 400), initColor(0, 0, 0, 255))
     draw(image, initRectangle(16, 32, 10, 7), initRectangle(400, 0, 150, 100))
     if em.selected:

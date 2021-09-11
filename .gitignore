@@ -2,6 +2,7 @@ nimcache/
 nimblecache/
 htmldocs/
 output/**
+buildcache/**
 content/**
 tools/bin/**
 .deps

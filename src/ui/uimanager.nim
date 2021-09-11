@@ -21,6 +21,9 @@ proc add*(um: var UIManager, e: seq[UIElement]) =
 proc setActive*(um: var UIManager, id: int, to: bool) =
     um.elements[id].isActive = to
 
+proc setPopup*(um: var UIManager, id: int, to: bool) =
+    um.elements[id].hasPopupAbove = to
+
 proc update*(um: var UIManager, sm: SoundManager): bool =
     pms = ms
     ms = getMouseState()

@@ -10,7 +10,8 @@ type
   UIElementKind* = enum
     UIButton,
     UIText,
-    UIGroup
+    UIGroup,
+    UIPanel
   UIElement* = object of RootObj
     focused*: bool
     isActive*: bool
@@ -28,6 +29,10 @@ type
       textUpdate*: UIUpdate
     of UIGroup:
       groupElements: seq[UIElement]
+      hasPopupAbove*: bool
+    of UIPanel:
+      panelTexture: UISprite
+      popup: bool
 
 var
   font*: FontFace
@@ -73,10 +78,22 @@ proc initUIText*(bounds: Rectangle, update: UIUpdate): UIElement =
   result.bounds = bounds
   result.textUpdate = update
 
+proc initUIPanel*(texture: ptr Texture, bounds: Rectangle,
+    popup: bool): UIElement =
+  result = UIElement(kind: UIPanel)
+
+  result.panelTexture = initUiSprite(texture, initRectangle(32, 16, 5, 5),
+          initRectangle(34, 18, 1, 1))
+  result.isActive = true
+  result.bounds = bounds
+  result.popup = popup
+
 proc checkHover*(e: var UIElement, ms, pms: MouseState): bool =
   if not e.isActive:
     return false
   if e.kind == UIButton and e.isDisabled != nil and e.isDisabled():
+    return false
+  if e.kind == UIPanel:
     return false
   if (e.bounds.X < (ms.position.X / SCALE).int and e.bounds.X +
           e.bounds.Width > (ms.position.X / SCALE).int) and
@@ -84,6 +101,8 @@ proc checkHover*(e: var UIElement, ms, pms: MouseState): bool =
               e.bounds.Height > (ms.position.Y / SCALE).int):
       return true
   if e.kind == UIGroup:
+    if (e.hasPopupAbove):
+      return false
     for i in 0..<e.groupElements.len:
       if e.groupElements[i].checkHover(ms, pms):
         return true
@@ -111,9 +130,13 @@ proc update*(e: var UIElement, ms, pms: MouseState, sm: SoundManager): bool =
     if e.textUpdate != nil:
       e.textText = e.textUpdate()
   of UIGroup:
+    if (e.hasPopupAbove):
+      return false
     for i in 0..<e.groupElements.len:
       if e.groupElements[i].update(ms, pms, sm):
         return true
+  of UIPanel:
+    return false
   return false
 
 proc draw*(element: var UIElement) =
@@ -155,3 +178,7 @@ proc draw*(element: var UIElement) =
   of UIGroup:
     for i in 0..<element.groupElements.len:
       element.groupElements[i].draw()
+  of UIPanel:
+    if element.popup:
+      drawFill(initRectangle(0, 0, 550, 400), initColor(0, 0, 0, 128))
+    element.panelTexture.draw(element.bounds)

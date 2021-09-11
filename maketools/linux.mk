@@ -11,6 +11,7 @@ dbg: output/linux
 	gdb output/linux/STD
 
 sources := $(wildcard src/*/*.nim src/*.nim)
+STDVERSION := $(shell cat rawContent/version.txt)
 
 # tools edit to add tools
 tools/bin/%: tools/src/%.nim
@@ -51,16 +52,16 @@ content/%.map: rawContent/maps/%.dat
 
 # end of content this is for building
 
-output/my.rc: tools/bin/rcmaker.sh
-	tools/bin/rcmaker.sh rawContent/version.txt output/my.rc
+buildcache/my.rc: tools/bin/rcmaker.sh
+	tools/bin/rcmaker.sh rawContent/version.txt buildcache/my.rc
 
-output/my32.res: output/my.rc
-	mkdir -p output
-	i686-w64-mingw32-windres output/my.rc -O coff output/my32.res
+buildcache/my32.res: buildcache/my.rc
+	mkdir -p buildcache
+	i686-w64-mingw32-windres buildcache/my.rc -O coff buildcache/my32.res
 
-output/my64.res: output/my.rc
-	mkdir -p output
-	x86_64-w64-mingw32-windres output/my.rc -O coff output/my64.res
+buildcache/my64.res: buildcache/my.rc
+	mkdir -p buildcache
+	x86_64-w64-mingw32-windres buildcache/my.rc -O coff buildcache/my64.res
 
 output/STD.zip: output
 	zip -r output/STD-linux.zip output/linux
@@ -119,17 +120,21 @@ output/windows64/SDL2_ttf.dll:
 	rm -rf tmp
 	rm -f SDL2_ttf-2.0.14-win32-x64.zip
 
-output/windows32/STD.exe: $(sources) content/icon.ico output/my32.res
-	nim c -o:output/windows32/STD.exe --app:gui -d:release -t:"-g -D_FORTIFY_SOURCE=0" -d:mingw --gc:markAndSweep --threads:on --cpu:i386 -l:"output/my32.res -Wl,-O1,--sort-common,--as-needed; echo " src/main.nim
+output/windows32/STD.exe: $(sources) content/icon.ico buildcache/my32.res
+	nim c -o:output/windows32/STD.exe -d:STDVersion:$(STDVERSION) --app:gui -d:release -t:"-g -D_FORTIFY_SOURCE=0" -d:mingw --gc:markAndSweep --threads:on --cpu:i386 -l:"buildcache/my32.res -Wl,-O1,--sort-common,--as-needed; echo " src/main.nim
 
-output/windows64/STD.exe: $(sources) content/icon.ico output/my64.res
-	nim c -o:output/windows64/STD.exe --app:gui -d:release -t:"-g -D_FORTIFY_SOURCE=0" -d:mingw --gc:markAndSweep --threads:on --cpu:amd64 -l:"output/my64.res -Wl,-O1,--sort-common,--as-needed; echo " src/main.nim
+output/windows64/STD.exe: $(sources) content/icon.ico buildcache/my64.res
+	nim c -o:output/windows64/STD.exe -d:STDVersion:$(STDVERSION) --app:gui -d:release -t:"-g -D_FORTIFY_SOURCE=0" -d:mingw --gc:markAndSweep --threads:on --cpu:amd64 -l:"buildcache/my64.res -Wl,-O1,--sort-common,--as-needed; echo " src/main.nim
 
 output/linux/STD: $(sources) tools/bin/version.sh
-	nim c -o:output/linux/STD --app:gui -d:release --gc:markAndSweep --threads:on src/main.nim
+	nim c -o:output/linux/STD -d:STDVersion:$(STDVERSION) --app:gui -d:release --gc:markAndSweep --threads:on src/main.nim
 	tools/bin/version.sh
 
-output/linux: output/linux/STD copycontent
+output/linux/readme.md: readme.md
+	mkdir -p output/linux
+	cp readme.md output/linux/readme.md
+
+output/linux: output/linux/STD copycontent output/linux/readme.md
 output/win32: output/windows32/SDL2.dll output/windows32/SDL2_ttf.dll output/windows32/STD.exe copycontent
 output/win64: output/windows64/SDL2.dll output/windows64/SDL2_ttf.dll output/windows64/STD.exe copycontent
 
