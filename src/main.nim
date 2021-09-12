@@ -30,6 +30,7 @@ Game:
     setWindowName("Sleep to Defend")
     setAppName("STD")
     setWindowSize(Point(X: 550, Y: 400))
+#     setResizeable(true)
     setDt(10)
     bg = initColor(0, 0, 0, 255)
 

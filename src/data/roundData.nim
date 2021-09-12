@@ -12,8 +12,6 @@ proc readRounds*(id: int): seq[Round] =
         while loop:
             var r = Round()
             r.running = true
-            r.path = getPath(id)
-            r.start = getPath(id)[0]
             r.enemies &= (Invis, 0)
             var length = f.readInt32()
             for i in 0..<length:
@@ -25,4 +23,9 @@ proc readRounds*(id: int): seq[Round] =
                     r.enemies &= (kind, time)
             roundData &= r
             loop = not f.atEnd
+        f.close()
+    var p = getPath(id)
+    for r in 0..<roundData.len:
+        roundData[r].path = p
+        roundData[r].start = p[0]
     return roundData

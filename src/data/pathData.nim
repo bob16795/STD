@@ -18,4 +18,5 @@ proc getPath*(id: int): seq[Point] =
             paths &= path
             loop = not f.atEnd
         cpaths = paths
+        f.close()
     return cpaths[id - 1]
